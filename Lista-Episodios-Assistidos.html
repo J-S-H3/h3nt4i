@@ -4,12 +4,30 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Episódios Assistidos</title>
+    <link rel="icon" href="jose.ico" type="jose.ico">
     <style>
         body {
             font-family: Arial, sans-serif;
             background-color: #121212;
             color: #fff;
             padding: 20px;
+            text-align: center;
+        }
+        #filtros {
+            margin-bottom: 20px;
+        }
+        .btn-filtro {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+            margin: 5px;
+        }
+        .btn-filtro.ativo {
+            background-color: #28a745;
         }
         #lista-episodios-assistidos {
             list-style: none;
@@ -20,59 +38,155 @@
             padding: 10px;
             margin: 5px 0;
             border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
-        .header {
-    background-color: #333;
-    color: #fff;
-    padding: 15px 10px;
-    position: sticky;
-    top: 0;
-    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
-}
-.header a {
-    color: #fff;
-    text-decoration: none;
-    margin: 0 10px;
-    font-size: 18px;
-}
+        .btn-remover {
+            background-color: red;
+            color: white;
+            border: none;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 3px;
+        }
+        .btn-voltar {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .btn-carregar {
+            display: none;
+            background-color: #ffc107;
+            color: black;
+            border: none;
+            padding: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
-    <div class="header">
-        <a href="index.html">← Voltar ao site de anime</a>
-    </div>
+
+    <button class="btn-voltar" onclick="history.back()">⬅️ Voltar</button>
+
     <h1>Episódios Assistidos</h1>
+
+    <div id="filtros">
+        <button class="btn-filtro ativo" id="btn-todos" onclick="filtrarEpisodios('Todos')">Todos</button>
+        <button class="btn-filtro" id="btn-legendado" onclick="filtrarEpisodios('Legendado')">Legendado</button>
+        <button class="btn-filtro" id="btn-dublado" onclick="filtrarEpisodios('Dublado')">Dublado</button>
+    </div>
+
     <ul id="lista-episodios-assistidos"></ul>
+    
+    <button class="btn-carregar" id="btn-carregar-mais" onclick="carregarMais()">Carregar mais</button>
 
     <script>
+        let todosOsEpisodios = [];
+        let episodiosExibidos = 0;
+        const LIMITE_INICIAL = 100;
+        let filtroAtual = "Todos";
+
         function carregarEpisodiosAssistidos() {
-            let listaAssistidos = document.getElementById("lista-episodios-assistidos");
-            listaAssistidos.innerHTML = "";
             let episodiosUnicos = new Set();
-            
+            todosOsEpisodios = [];
+
             for (let i = 0; i < localStorage.length; i++) {
                 let chave = localStorage.key(i);
                 if (chave.includes("_E")) {
                     let partes = chave.split("_");
-                    let nomeAnime = partes[0];
+                    if (partes.length < 3) continue;
+
+                    let nomeAnime = partes[0].replace(/%20/g, " ");
+                    let idioma = partes[1];
                     let episodio = chave.split("_E")[1];
-                    
-                    // Remove referência à temporada, caso exista
-                    episodio = episodio.replace(/T\d+\//, "");
-                    // Remove palavras duplicadas
-                    episodio = episodio.replace(/\b(episodio)\b.*\b(episodio)\b/i, "$1");
-                    
-                    if (!episodiosUnicos.has(episodio)) {
-                        episodiosUnicos.add(episodio);
-                        let item = document.createElement("li");
-                        item.textContent = `${nomeAnime} - Episódio ${episodio} ✅`;
-                        listaAssistidos.appendChild(item);
+
+                    episodio = episodio.replace(/T\d+\//, "").replace(/\bepisodio\b/i, "").trim();
+                    episodio = episodio.replace(/[^\d]+/g, "");
+
+                    if (episodio && !episodiosUnicos.has(chave)) {
+                        episodiosUnicos.add(chave);
+                        todosOsEpisodios.push({ chave, nomeAnime, idioma, episodio });
                     }
                 }
             }
+
+            todosOsEpisodios.sort((a, b) => a.nomeAnime.localeCompare(b.nomeAnime) || parseInt(a.episodio) - parseInt(b.episodio));
+            filtrarEpisodios("Todos");
+        }
+
+        function filtrarEpisodios(filtro) {
+            filtroAtual = filtro;
+            episodiosExibidos = 0;
+
+            document.querySelectorAll(".btn-filtro").forEach(btn => btn.classList.remove("ativo"));
+            document.getElementById(`btn-${filtro.toLowerCase()}`).classList.add("ativo");
+
+            let episodiosFiltrados = todosOsEpisodios;
+            if (filtro !== "Todos") {
+                episodiosFiltrados = todosOsEpisodios.filter(ep => ep.idioma.toLowerCase() === filtro.toLowerCase());
+            }
+
+            if (episodiosFiltrados.length === 0) {
+                document.getElementById("lista-episodios-assistidos").innerHTML = `<p>Nenhum episódio encontrado para ${filtro}.</p>`;
+                document.getElementById("btn-carregar-mais").style.display = "none";
+                return;
+            }
+
+            mostrarEpisodios(episodiosFiltrados);
+        }
+
+        function mostrarEpisodios(lista) {
+            let listaAssistidos = document.getElementById("lista-episodios-assistidos");
+            listaAssistidos.innerHTML = "";
+
+            let total = lista.length;
+            let maxExibir = Math.min(LIMITE_INICIAL, total);
+            episodiosExibidos = maxExibir;
+
+            lista.slice(0, maxExibir).forEach(ep => {
+                let item = document.createElement("li");
+                item.innerHTML = `${ep.nomeAnime} (${ep.idioma}) - Episódio ${ep.episodio} ✅
+                    <button class="btn-remover" onclick="removerEpisodio('${ep.chave}')">❌</button>`;
+                listaAssistidos.appendChild(item);
+            });
+
+            document.getElementById("btn-carregar-mais").style.display = total > maxExibir ? "block" : "none";
+        }
+
+        function carregarMais() {
+            let listaAssistidos = document.getElementById("lista-episodios-assistidos");
+            let episodiosFiltrados = todosOsEpisodios.filter(ep => filtroAtual === "Todos" || ep.idioma.toLowerCase() === filtroAtual.toLowerCase());
+
+            let maxExibir = Math.min(episodiosExibidos + 100, episodiosFiltrados.length);
+            episodiosFiltrados.slice(episodiosExibidos, maxExibir).forEach(ep => {
+                let item = document.createElement("li");
+                item.innerHTML = `${ep.nomeAnime} (${ep.idioma}) - Episódio ${ep.episodio} ✅
+                    <button class="btn-remover" onclick="removerEpisodio('${ep.chave}')">❌</button>`;
+                listaAssistidos.appendChild(item);
+            });
+
+            episodiosExibidos = maxExibir;
+            document.getElementById("btn-carregar-mais").style.display = episodiosExibidos < episodiosFiltrados.length ? "block" : "none";
+        }
+
+        function removerEpisodio(chave) {
+            localStorage.removeItem(chave);
+            carregarEpisodiosAssistidos();
         }
 
         document.addEventListener("DOMContentLoaded", carregarEpisodiosAssistidos);
     </script>
+
+    <p>Versão 3.0</p>
+
 </body>
 </html>
