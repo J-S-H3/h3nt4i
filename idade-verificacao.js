@@ -5,14 +5,14 @@
 
     // Se estiver bloqueado
     if (bloqueado) {
-        window.location.href = "/aceeso/bloqueado.html"; // Página simples de bloqueio
+        window.location.href = "h3nt4i/aceeso/bloqueado.html"; // Página simples de bloqueio
         return;
     }
 
     // Se não tem cookie de nascimento, redireciona para verificação
     if (!birthdateCookie) {
         localStorage.setItem("paginaAnterior", window.location.href);
-        window.location.href = "/aceeso/verificacao.html";
+        window.location.href = "h3nt4i/aceeso/verificacao.html";
         return;
     }
 
@@ -20,7 +20,7 @@
     const birthdate = birthdateCookie.split('=')[1];
     if (calcularIdade(new Date(birthdate)) < 18) {
         document.cookie = `blocked=true; path=/; expires=Fri, 31 Dec 9999 23:59:59 GMT`;
-        window.location.href = "/aceeso/bloqueado.html";
+        window.location.href = "h3nt4i/aceeso/bloqueado.html";
     }
 })();
 
